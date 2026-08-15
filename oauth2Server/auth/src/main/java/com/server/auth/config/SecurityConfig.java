@@ -32,6 +32,9 @@ public class SecurityConfig {
                                 authorizationServer
                                         .oidc(Customizer.withDefaults())
                 )
+                .authorizeHttpRequests(authorize ->
+                        authorize.anyRequest().authenticated()
+                )
                 .exceptionHandling(exceptions ->
                         exceptions.defaultAuthenticationEntryPointFor(
                                 new LoginUrlAuthenticationEntryPoint("/login"),
@@ -48,7 +51,12 @@ public class SecurityConfig {
     @Order(2)
     public SecurityFilterChain defaultFilterChain(HttpSecurity http) throws Exception {
         http.formLogin(Customizer.withDefaults());
-        http.authorizeHttpRequests(request -> request.anyRequest().authenticated());
+        http
+                 .csrf(csrf -> csrf.disable())
+                .authorizeHttpRequests(request -> request
+                .requestMatchers("/login", "/error").permitAll()
+                .anyRequest().authenticated()
+              ).formLogin(Customizer.withDefaults());
         return http.build();
     }
 

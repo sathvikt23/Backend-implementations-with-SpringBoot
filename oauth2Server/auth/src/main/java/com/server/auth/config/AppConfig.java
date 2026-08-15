@@ -6,6 +6,7 @@ import com.nimbusds.jose.jwk.RSAKey;
 import com.nimbusds.jose.jwk.source.ImmutableJWKSet;
 import com.nimbusds.jose.jwk.source.JWKSource;
 import com.nimbusds.jose.proc.SecurityContext;
+import org.springframework.boot.CommandLineRunner;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.core.userdetails.User;
@@ -21,17 +22,21 @@ import org.springframework.security.oauth2.server.authorization.settings.ClientS
 import org.springframework.security.oauth2.server.authorization.settings.TokenSettings;
 import org.springframework.security.provisioning.InMemoryUserDetailsManager;
 import org.springframework.security.core.userdetails.UserDetailsService;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.web.cors.CorsConfiguration;
+import org.springframework.web.cors.CorsConfigurationSource;
 
-import java.security.KeyPair;
-import java.security.KeyPairGenerator;
-import java.security.NoSuchAlgorithmException;
+import java.security.*;
 import java.security.interfaces.RSAPrivateKey;
 import java.security.interfaces.RSAPublicKey;
 import java.time.Duration;
+import java.util.Base64;
+import java.util.List;
 import java.util.UUID;
 
 @Configuration
-public class AppConfig {
+@Slf4j
+public class AppConfig implements CommandLineRunner {
 
     @Bean
     public UserDetailsService userDetailService(){
@@ -59,15 +64,16 @@ public class AppConfig {
                 .authorizationGrantType(AuthorizationGrantType.AUTHORIZATION_CODE)
                 .authorizationGrantType(AuthorizationGrantType.REFRESH_TOKEN)
                 .redirectUri("http://localhost:8081")
+                .redirectUri("https://oauth.pstmn.io/v1/callback")
                 .scope("openid")
                 .tokenSettings(
                         TokenSettings.builder()
-                                .accessTokenTimeToLive(Duration.ofHours(6))//it is hours be care full
+                                .accessTokenTimeToLive(Duration.ofHours(6))//it is hours, be care full
                                 .build()
                 )
                 .clientSettings(
                         ClientSettings.builder()
-                                .requireProofKey(false)
+                                .requireProofKey(true)
                                 .build()
                 )
                 .build();
@@ -94,6 +100,45 @@ public class AppConfig {
                .keyID(String.valueOf(UUID.randomUUID()))
                .build();
        return new ImmutableJWKSet<>(new JWKSet(rsaKey));
+
+   }
+//CORS
+//    @Bean
+//    public CorsConfigurationSource corsConfigurationSource() {
+//        CorsConfiguration configuration = new CorsConfiguration();
+//
+//        configuration.setAllowedOrigins(
+//                List.of("http://localhost:3000")
+//        );
+//
+//        configuration.setAllowedMethods(
+//                List.of("GET", "POST", "PUT", "DELETE", "OPTIONS")
+//        );
+//
+//        configuration.setAllowedHeaders(
+//                List.of("*")
+//        );
+//
+//        configuration.setAllowCredentials(true);
+//
+//        UrlBasedCorsConfigurationSource source =
+//                new UrlBasedCorsConfigurationSource();
+//
+//        source.registerCorsConfiguration("/**", configuration);
+//
+//        return source;
+//    }
+
+   @Override
+    public void run (String ...args) throws Exception  {
+        byte [] code = new byte[32];
+        new SecureRandom().nextBytes(code);
+        String verifier = Base64.getUrlEncoder().withoutPadding().encodeToString(code);
+        byte [] digestedVerifier = MessageDigest.getInstance("SHA-256").digest(verifier.getBytes());
+        String codeChallange = Base64.getUrlEncoder().withoutPadding().encodeToString(digestedVerifier);
+
+        log.info("Challenge Verifier : "+verifier);
+        log.info("Code challange "+codeChallange);
 
    }
 
